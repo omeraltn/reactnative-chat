@@ -66,6 +66,7 @@ export default function Chat() {
   }, [chatId]);
 
   // Mesaj Gönderme Fonksiyonu
+  // Mesaj Gönderme Fonksiyonu
   const onSend = async () => {
     if (!chatId || text.trim() === "") return;
 
@@ -86,8 +87,11 @@ export default function Chat() {
 
       setText(""); // Girdiyi temizle
 
+      // ✅ GÜNCELLENDİ: lastMessage ve updatedAt eklendi
       await updateDoc(docRef, {
         messages: updatedMessages,
+        lastMessage: text.trim(), // ← Son mesaj içeriği
+        updatedAt: new Date().toISOString(), // ← Sıralama için zaman damgası
       });
     } catch (error) {
       console.error("Mesaj gönderilirken hata oluştu:", error);

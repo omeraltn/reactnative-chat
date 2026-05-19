@@ -62,7 +62,7 @@ export default function ChatList() {
       await addDoc(collection(db, "chats"), {
         users: [auth.currentUser?.email, userEmail.trim()],
         messages: [],
-        lastMessage: "Sohbete Katıl", // İlk varsayılan mesaj
+        lastMessage: "Sohbeti Başlat", // İlk varsayılan mesaj
 
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(), // Sıralama için başlangıç tarihi
