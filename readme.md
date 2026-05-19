@@ -22,4 +22,8 @@ Kullanıcıların kayıt olup giriş yapabildiği, gerçek zamanlı mesajlaşabi
 
 ## Ekran Görüntüsü
 
-![]()
+![](./assets/screen.jpg)
+
+## gifs
+
+![](./assets/ekranlar.gif)
