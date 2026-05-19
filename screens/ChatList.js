@@ -62,7 +62,8 @@ export default function ChatList() {
       await addDoc(collection(db, "chats"), {
         users: [auth.currentUser?.email, userEmail.trim()],
         messages: [],
-        lastMessage: "Sohbete başlamak için tıklayın...", // İlk varsayılan mesaj
+        lastMessage: "Sohbete Katıl", // İlk varsayılan mesaj
+
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(), // Sıralama için başlangıç tarihi
       });
@@ -108,7 +109,7 @@ export default function ChatList() {
                       {...props}
                       label={initials}
                       size={50}
-                      style={{ backgroundColor: "#6200ee" }}
+                      style={{ backgroundColor: "#7c6cbf" }}
                     />
                   )}
                 />
