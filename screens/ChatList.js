@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { View, StyleSheet, Alert, ActivityIndicator } from "react-native";
+import { View, StyleSheet, FlatList, TouchableOpacity } from "react-native";
 import {
   List,
   Avatar,
@@ -12,100 +12,64 @@ import {
   Title,
   Subheading,
 } from "react-native-paper";
-
-// Güncel Firebase Modüler Yapısı
-import { db, auth } from "../firebaseConfig";
-// serverTimestamp ve orderBy metotları import listesine eklendi
-import {
-  collection,
-  addDoc,
-  query,
-  where,
-  orderBy,
-  onSnapshot,
-  serverTimestamp,
-} from "firebase/firestore";
 import { useNavigation } from "@react-navigation/native";
 
+// Güncel Firebase Yapısı
+import { db, auth } from "../firebaseConfig";
+import {
+  collection,
+  onSnapshot,
+  query,
+  orderBy,
+  doc,
+  addDoc,
+} from "firebase/firestore";
+
 export default function ChatList() {
-  const [isDialogVisible, setDialogVisible] = useState(false);
-  const [userEmail, setUserEmail] = useState("");
-  const [chats, setChats] = useState([]);
-  const [isLoading, setIsLoading] = useState(false);
-
   const navigation = useNavigation();
-  const currentUserEmail = auth.currentUser?.email;
+  const [isDialogVisible, setIsDialogVisible] = useState(false);
+  const [chats, setChats] = useState([]);
+  const [userEmail, setUserEmail] = useState("");
 
-  // FIRESTORE'DAN VERİLERİ EN YENİYE GÖRE SIRALAYARAK ÇEKME
+  // Sohbet odalarını dinleme ve son mesaja göre sıralama
   useEffect(() => {
-    if (!currentUserEmail) return;
+    const collectionRef = collection(db, "chats");
 
-    // ÖNEMLİ: orderBy("createdAt", "desc") eklendi.
-    // Bu sorgunun çalışması için Firebase Konsolunda INDEX oluşturulmalıdır (Bkz: Adım 2)
-    const q = query(
-      collection(db, "chats"),
-      where("users", "array-contains", currentUserEmail.toLowerCase()),
-      orderBy("createdAt", "desc"),
-    );
+    // updatedAt alanına göre en yeni sohbet en üstte olacak şekilde sorgu oluşturuyoruz
+    const q = query(collectionRef, orderBy("updatedAt", "desc"));
 
     const unsubscribe = onSnapshot(
       q,
       (snapshot) => {
-        const chatsArray = snapshot.docs.map((doc) => ({
+        const chatRooms = snapshot.docs.map((doc) => ({
           id: doc.id,
           ...doc.data(),
         }));
-        setChats(chatsArray);
+        setChats(chatRooms);
       },
       (error) => {
-        // Index eksik olduğunda buraya düşen hata linkine tıklayarak doğrudan index oluşturabilirsiniz.
         console.error("Sohbetler dinlenirken hata oluştu: ", error);
       },
     );
 
     return () => unsubscribe();
-  }, [currentUserEmail]);
+  }, []);
 
-  // Yeni Sohbet Odası Oluşturma Fonksiyonu
-  const handleCreateChat = async () => {
-    if (!userEmail || userEmail.trim() === "") {
-      Alert.alert("Hata", "Lütfen geçerli bir e-posta adresi girin.");
-      return;
-    }
-
-    const targetEmail = userEmail.trim().toLowerCase();
-
-    if (targetEmail === currentUserEmail?.toLowerCase()) {
-      Alert.alert("Hata", "Kendinizle bir sohbet başlatamazsınız.");
-      return;
-    }
-
-    setIsLoading(true);
-
+  // Yeni Oda Oluşturma Fonksiyonu (Diyalog içindeki Save butonu için)
+  const createChat = async () => {
+    if (!userEmail.trim()) return;
     try {
-      // Sohbet odasına sunucu saati (serverTimestamp) ile createdAt ekleniyor
       await addDoc(collection(db, "chats"), {
-        users: [currentUserEmail.toLowerCase(), targetEmail],
-        createdAt: serverTimestamp(), // Odanın tam oluşturulma anını kaydeder
+        users: [auth.currentUser?.email, userEmail.trim()],
+        messages: [],
+        lastMessage: "Sohbete başlamak için tıklayın...", // İlk varsayılan mesaj
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(), // Sıralama için başlangıç tarihi
       });
-
       setUserEmail("");
-      setDialogVisible(false);
-      Alert.alert("Başarılı", "Sohbet odası oluşturuldu.");
     } catch (error) {
-      console.error("Sohbet oluşturulurken hata:", error);
-      Alert.alert("Hata", "Sohbet başlatılamadı: " + error.message);
-    } finally {
-      setIsLoading(false);
+      console.error("Oda oluşturulurken hata:", error);
     }
-  };
-
-  const getChatPartner = (usersArray) => {
-    if (!usersArray) return "Bilinmeyen Kullanıcı";
-    return (
-      usersArray.find((email) => email !== currentUserEmail?.toLowerCase()) ||
-      "Siz"
-    );
   };
 
   return (
@@ -113,63 +77,73 @@ export default function ChatList() {
       {chats.length === 0 ? (
         <View style={styles.emptyContainer}>
           <Title>Henüz Sohbet Yok</Title>
-          <Subheading>
+          <Subheading style={{ textAlign: "center" }}>
             Yeni bir sohbet başlatmak için + butonuna basın!
           </Subheading>
         </View>
       ) : (
-        chats.map((chat) => (
-          <React.Fragment key={chat.id}>
-            <List.Item
-              title={getChatPartner(chat.users)}
-              description="Sohbete başlamak için tıklayın..."
-              left={() => (
-                <Avatar.Text
-                  label={getChatPartner(chat.users)
-                    .substring(0, 2)
-                    .toUpperCase()}
-                  size={50}
+        // Performans ve pürüzsüz kaydırma için FlatList kullanımı (Tavsiye edilir)
+        <FlatList
+          data={chats}
+          keyExtractor={(item) => item.id}
+          ItemSeparatorComponent={() => <Divider style={styles.divider} />}
+          renderItem={({ item }) => {
+            // Karşı tarafın adını/mailini bulmak için (Basit mantık)
+            const partnerEmail =
+              item.users?.find((email) => email !== auth.currentUser?.email) ||
+              "Bilinmeyen Kullanıcı";
+            const initials = partnerEmail.substring(0, 2).toUpperCase();
+
+            return (
+              <TouchableOpacity
+                onPress={() => navigation.navigate("Chat", { chatId: item.id })}
+              >
+                <List.Item
+                  title={partnerEmail}
+                  // Sabit yazı yerine veri tabanından anlık gelen son mesajı yazdırıyoruz!
+                  description={item.lastMessage || "Mesaj yok..."}
+                  descriptionNumberOfLines={1}
+                  left={(props) => (
+                    <Avatar.Text
+                      {...props}
+                      label={initials}
+                      size={50}
+                      style={{ backgroundColor: "#6200ee" }}
+                    />
+                  )}
                 />
-              )}
-              onPress={() => navigation.navigate("Chat", { chatId: chat.id })}
-            />
-            <Divider style={styles.divider} />
-          </React.Fragment>
-        ))
+              </TouchableOpacity>
+            );
+          }}
+        />
       )}
 
+      {/* Diyalog ve Artı Butonu Yapısı (Mevcut kodunun aynısı kalabilir) */}
       <Portal>
         <Dialog
           visible={isDialogVisible}
-          onDismiss={() => setDialogVisible(false)}
+          onDismiss={() => setIsDialogVisible(false)}
         >
-          <Dialog.Title>New Chat</Dialog.Title>
+          <Dialog.Title>Yeni Sohbet</Dialog.Title>
           <Dialog.Content>
             <TextInput
-              label="Enter User Email"
+              label="E-posta Adresi Girin"
               value={userEmail}
-              onChangeText={(text) => setUserEmail(text)}
+              onChangeText={setUserEmail}
               autoCapitalize="none"
               keyboardType="email-address"
-              disabled={isLoading}
             />
           </Dialog.Content>
           <Dialog.Actions>
+            <Button onPress={() => setIsDialogVisible(false)}>İptal</Button>
             <Button
-              disabled={isLoading}
-              onPress={() => setDialogVisible(false)}
+              onPress={() => {
+                setIsDialogVisible(false);
+                createChat();
+              }}
             >
-              Cancel
+              Oluştur
             </Button>
-            {isLoading ? (
-              <ActivityIndicator
-                size="small"
-                color="#6200ee"
-                style={{ marginRight: 16 }}
-              />
-            ) : (
-              <Button onPress={handleCreateChat}>Save</Button>
-            )}
           </Dialog.Actions>
         </Dialog>
       </Portal>
@@ -177,7 +151,7 @@ export default function ChatList() {
       <FAB
         icon="plus"
         style={styles.fab}
-        onPress={() => setDialogVisible(true)}
+        onPress={() => setIsDialogVisible(true)}
       />
     </View>
   );
@@ -189,18 +163,19 @@ const styles = StyleSheet.create({
     backgroundColor: "#fff",
   },
   emptyContainer: {
-    marginTop: 100,
-    alignItems: "center",
+    flex: 1,
     justifyContent: "center",
+    alignItems: "center",
     paddingHorizontal: 20,
   },
   divider: {
-    marginLeft: 60,
+    marginLeft: 70,
   },
   fab: {
     position: "absolute",
-    bottom: 16,
-    right: 16,
+    margin: 16,
+    right: 0,
+    bottom: 0,
     backgroundColor: "#6200ee",
   },
 });
