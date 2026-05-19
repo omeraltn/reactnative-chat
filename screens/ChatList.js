@@ -89,7 +89,6 @@ export default function ChatList() {
           keyExtractor={(item) => item.id}
           ItemSeparatorComponent={() => <Divider style={styles.divider} />}
           renderItem={({ item }) => {
-            // Karşı tarafın adını/mailini bulmak için (Basit mantık)
             const partnerEmail =
               item.users?.find((email) => email !== auth.currentUser?.email) ||
               "Bilinmeyen Kullanıcı";
@@ -101,7 +100,6 @@ export default function ChatList() {
               >
                 <List.Item
                   title={partnerEmail}
-                  // Sabit yazı yerine veri tabanından anlık gelen son mesajı yazdırıyoruz!
                   description={item.lastMessage || "Mesaj yok..."}
                   descriptionNumberOfLines={1}
                   left={(props) => (
@@ -118,8 +116,6 @@ export default function ChatList() {
           }}
         />
       )}
-
-      {/* Diyalog ve Artı Butonu Yapısı (Mevcut kodunun aynısı kalabilir) */}
       <Portal>
         <Dialog
           visible={isDialogVisible}
