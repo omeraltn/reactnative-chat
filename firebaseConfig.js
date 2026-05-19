@@ -4,19 +4,21 @@ import { getFirestore } from "firebase/firestore";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const firebaseConfig = {
-  apiKey: "AIzaSyAxcSbYXsEMT3saRXdiI0szB68J49qZWPQ",
-  authDomain: "chat-app-native-b1410.firebaseapp.com",
-  projectId: "chat-app-native-b1410",
-  storageBucket: "chat-app-native-b1410.firebasestorage.app",
-  messagingSenderId: "311539238091",
-  appId: "1:311539238091:web:f8e4279835178ae03ac74e",
+  apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY,
+  authDomain: process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN,
+  projectId: process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID,
+  storageBucket: process.env.EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: process.env.EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+  appId: process.env.EXPO_PUBLIC_FIREBASE_APP_ID,
 };
 
-// Firebase'i başlatıyoruz
+// Firebase başlat
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
 
-// Auth ve Firestore referanslarını buradan export ediyoruz
+// Auth
 export const auth = initializeAuth(app, {
   persistence: getReactNativePersistence(AsyncStorage),
 });
+
+// Firestore
 export const db = getFirestore(app);
